@@ -101,22 +101,22 @@ def overlap_seg(s, t):
 
 
 def local_seg(s, t):
-    seg_array = np.empty((len(s)+1, len(t)+1), dtype=object)
+    seg_array = np.empty((len(s)+1, len(t)+1, 2), dtype=object)
 
     score_i, score_j = 0, 0
     score = 0
 
-    seg_array[0,0] = (0, directions.START)
+    seg_array[0,0, 0], seg_array[0, 0, 1] = 0, directions.START
     for i in range(len(s)):
-        seg_array[i+1,0] = ((i+1)*score_table[serialize_dict[s[i]], serialize_dict['-']], directions.UP)
+        seg_array[i+1,0, 0], seg_array[i+1, 0, 1] = (i+1)*score_table[serialize_dict[s[i]], serialize_dict['-']], directions.UP
     for i in range(len(t)):
-        seg_array[0,i+1] = ((i+1)*score_table[serialize_dict['-'], serialize_dict[t[i]]], directions.LEFT)
+        seg_array[0,i+1, 0], seg_array[0, i+1, 1] = (i+1)*score_table[serialize_dict['-'], serialize_dict[t[i]]], directions.LEFT
 
     for j in range(len(s)):
         for i in range(len(t)):
-            left_op = seg_array[j+1, i][0] + score_table[serialize_dict[s[j]], serialize_dict['-']]
-            up_op = seg_array[j, i+1][0] + score_table[serialize_dict['-'], serialize_dict[t[i]]]
-            lau_op = seg_array[j, i][0] + score_table[serialize_dict[s[j]], serialize_dict[t[i]]]
+            left_op = seg_array[j+1, i, 0] + score_table[serialize_dict[s[j]], serialize_dict['-']]
+            up_op = seg_array[j, i+1, 0] + score_table[serialize_dict['-'], serialize_dict[t[i]]]
+            lau_op = seg_array[j, i, 0] + score_table[serialize_dict[s[j]], serialize_dict[t[i]]]
 
             start_left_op  = score_table[serialize_dict[s[j]], serialize_dict['-']]
             start_up_op = score_table[serialize_dict['-'], serialize_dict[t[i]]]
@@ -126,58 +126,68 @@ def local_seg(s, t):
             if m > score:
                 score, score_i, score_j = m, i, j
 
-            if m==lau_op:
+            if m in [start_left_op, start_up_op, start_lau_op]:
+                direction = directions.START
+            elif m==lau_op:
                 direction = directions.LAU
             elif m==left_op:
                 direction = directions.LEFT
-            elif m==up_op:
+            else :
                 direction = directions.UP
-            else:
-                direction = directions.START
             
 
-            seg_array[j+1, i+1] = (m, direction, f"{s[j]},{t[i]}")
+            seg_array[j+1, i+1, 0], seg_array[j+1, i+1, 1] = m, direction
 
-    curr_s_index, curr_t_index = score_j + 1, score_i + 1
+
+
+
+    curr_s_index, curr_t_index = score_j+1, score_i+1
+    curr_s, curr_t = score_j, score_i
     ret_s, ret_t = [], []
-    direction = directions.LAU
-
-    while seg_array[curr_s_index, curr_t_index][1] != directions.START:
+    while True:
+        direction = seg_array[curr_s_index, curr_t_index, 1]
         if direction == directions.LAU:
-            ret_s.insert(0, s[curr_s_index-1])
-            ret_t.insert(0, t[curr_t_index-1])
             curr_s_index -= 1
             curr_t_index -= 1
+            ret_s.append(s[curr_s])
+            ret_t.append(t[curr_t])
+            curr_s -= 1
+            curr_t -= 1
 
         elif direction == directions.LEFT:
-            ret_s.insert(0, '-')
-            ret_t.insert(0, t[curr_t_index-1])
             curr_t_index -= 1
+            ret_s.append('-')
+            ret_t.append(t[curr_t])
+            curr_t -= 1
+
+        elif direction == directions.UP:
+            curr_s_index -= 1
+            ret_t.append('-')
+            ret_s.append(s[curr_s])
+            curr_s -= 1
 
         else:
-            ret_s.insert(0, s[curr_s_index-1])
-            ret_t.insert(0, '-')
-            curr_s_index -= 1
+            ret_s.append(s[curr_s_index-1])
+            ret_t.append(t[curr_t_index-1])
+            break
 
-        direction = seg_array[curr_s_index, curr_t_index][1]
-
-    return ret_s, ret_t, score
+    return ret_s[::-1], ret_t[::-1], score
 
 
 def global_seg(s, t):
-    seg_array = np.empty((len(s)+1, len(t)+1), dtype=object)
+    seg_array = np.empty((len(s)+1, len(t)+1, 2), dtype=object)
 
-    seg_array[0,0] = (0, directions.START)
+    seg_array[0,0, 0], seg_array[0, 0, 1] = 0, directions.START
     for i in range(len(s)):
-        seg_array[i+1,0] = ((i+1)*score_table[serialize_dict[s[i]], serialize_dict['-']], directions.UP)
+        seg_array[i+1,0,0], seg_array[i+1,0,1] = (i+1)*score_table[serialize_dict[s[i]], serialize_dict['-']], directions.UP
     for i in range(len(t)):
-        seg_array[0,i+1] = ((i+1)*score_table[serialize_dict['-'], serialize_dict[t[i]]], directions.LEFT)
+        seg_array[0,i+1,0], seg_array[0,i+1, 1] = (i+1)*score_table[serialize_dict['-'], serialize_dict[t[i]]], directions.LEFT
 
     for j in range(len(s)):
         for i in range(len(t)):
-            left_op = seg_array[j+1, i][0] + score_table[serialize_dict[s[j]], serialize_dict['-']]
-            up_op = seg_array[j, i+1][0] + score_table[serialize_dict['-'], serialize_dict[t[i]]]
-            lau_op = seg_array[j, i][0] + score_table[serialize_dict[s[j]], serialize_dict[t[i]]]
+            left_op = seg_array[j+1, i, 0] + score_table[serialize_dict[s[j]], serialize_dict['-']]
+            up_op = seg_array[j, i+1, 0] + score_table[serialize_dict['-'], serialize_dict[t[i]]]
+            lau_op = seg_array[j, i, 0] + score_table[serialize_dict[s[j]], serialize_dict[t[i]]]
 
             m = max(left_op, up_op, lau_op)
 
@@ -189,14 +199,14 @@ def global_seg(s, t):
                 direction = directions.UP
             
 
-            seg_array[j+1, i+1] = (m, direction, f"{s[j]},{t[i]}")
+            seg_array[j+1, i+1, 0], seg_array[j+1, i+1, 1] = m, direction
             # print(f"seg_array[{j+1}, {i+1}]={seg_array[j+1, i+1]}")
 
     curr_s_index, curr_t_index = len(s), len(t)
 
     # print(s, t)
     while curr_s_index!=0 or curr_t_index!=0:
-        direction = seg_array[curr_s_index,curr_t_index][1]
+        direction = seg_array[curr_s_index,curr_t_index, 1]
         # print(f"s_ind:{curr_s_index}, t_ind:{curr_t_index}, direction:{direction}")
         if direction==directions.LAU:
             curr_s_index, curr_t_index = curr_s_index-1, curr_t_index-1
@@ -209,7 +219,7 @@ def global_seg(s, t):
         else:
             pass
 
-    return s, t, seg_array[-1, -1][0]
+    return s, t, seg_array[-1, -1, 0]
 
 def fastaread(fasta_name):
     """
@@ -225,6 +235,13 @@ def fastaread(fasta_name):
         yield header, seq
 
 
+def gen_score(filename):
+    tsv = pd.read_table(filename)
+    global score_table
+    del tsv[tsv.columns[0]]
+    score_table = np.array(tsv)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('seq_a', help='Path to first FASTA file (e.g. fastas/HomoSapiens-SHH.fasta)')
@@ -235,20 +252,20 @@ def main():
 
     s_gen, t_gen = fastaread(command_args.seq_a), fastaread(command_args.seq_b)
 
-    if command_args.score != None:
-        tsv = pd.read_table(command_args.score)
-    else:
-        tsv = pd.read_table('score_matrix.tsv')
-
-    global score_table
-    del tsv[tsv.columns[0]]
-    score_table = np.array(tsv)
-
     s, t = [], []
-    for i in s_gen:
-        s += list(i[1])
-    for j in t_gen:
-        t += list(j[1])
+    s = list(next(s_gen)[1])
+    t = list(next(t_gen)[1])
+    # for i in s_gen:
+    #     s += list(i[1])
+    # for j in t_gen:
+    #     t += list(j[1])
+
+    if command_args.score != None:
+        tsv = command_args.score
+    else:
+        tsv = 'score_matrix.tsv'
+
+    gen_score(tsv)
     
     if command_args.align_type == 'global':
         res = global_seg(s, t)
@@ -269,5 +286,6 @@ if __name__ == '__main__':
     # del tsv[tsv.columns[0]]
     # score_table = np.array(tsv)
 
-    # print(local_seg(list("TACCG"), list("TAG")))
+    # print("CATTCAG", "GCTTCGAG")
+    # print(local_seg(list("CATTCAG"), list("GCTTCGAG")))
     main()
